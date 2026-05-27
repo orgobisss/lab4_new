@@ -47,9 +47,14 @@ namespace lab4_new
             builder.OpenBaseAssembly(baseAssemblyPath);
         }
 
-        private void buttonSaveSelection_Click(object sender, EventArgs e)
+        private void buttonSaveSelection1_Click(object sender, EventArgs e)
         {
-            builder.SavePreSelectedObjects();
+            builder.SaveFirstStageFaces();
+        }
+
+        private void buttonSaveSelection2_Click(object sender, EventArgs e)
+        {
+            builder.SaveSecondStageFaces();
         }
 
         // Кнопка для Горизонтального пальца
@@ -61,10 +66,10 @@ namespace lab4_new
                 return;
             }
 
-            bool success = builder.AddComponentWithAutoMate(pinHorizontalPath, 2, 0.1, 0, 0);
+            bool success = builder.AddComponentWithAutoMate(pinHorizontalPath, "PalecHorizontal");
             if (success)
             {
-                MessageBox.Show("Горизонтальный палец добавлен и сопряжен!");
+                MessageBox.Show("PalecHorizontal добавлен и сопряжен!");
             }
         }
 
@@ -77,35 +82,10 @@ namespace lab4_new
                 return;
             }
 
-            bool success = builder.AddComponentWithAutoMate(pinVerticalPath, 2, 0.2, 0, 0);
+            bool success = builder.AddComponentWithAutoMate(pinVerticalPath, "PalecVertical");
             if (success)
             {
-                MessageBox.Show("Вертикальный палец добавлен и сопряжен!");
-            }
-        }
-
-        // Кнопка для Основания
-        private void btnAddBase_Click(object sender, EventArgs e)
-        {
-            if (!File.Exists(basePath))
-            {
-                MessageBox.Show($"Файл не найден: {basePath}");
-                return;
-            }
-
-            // Для основания нужно только плоское сопряжение
-            var savedElements = builder.GetPreSelectedObjects();
-            if (savedElements.Count >= 1) // Нужна только плоскость
-            {
-                bool success = builder.AddComponentWithAutoMate(basePath, 2, 0.01, 0, 0.02);
-                if (success)
-                {
-                    MessageBox.Show("Основание добавлена и сопряжена!");
-                }
-            }
-            else
-            {
-                MessageBox.Show("Сначала выделите плоскость на базовой детали!");
+                MessageBox.Show("PalecVertical добавлен и сопряжен!");
             }
         }
 
@@ -118,23 +98,26 @@ namespace lab4_new
                 return;
             }
 
-            // Для зажима нужно только 1 выделенный элемент
-            var savedElements = builder.GetPreSelectedObjects();
-
-            if (savedElements.Count == 0)
+            bool success = builder.AddComponentWithAutoMate(clampPath, "Clamp");
+            if (success)
             {
-                MessageBox.Show("Сначала выделите на базовой детали:\n" +
-                               "Грань, к которой будет прижиматься зажим\n" +
-                               "Затем нажмите 'Сохранить выделение'");
+                MessageBox.Show("Clamp добавлен и сопряжен!");
+            }
+        }
+
+        // Кнопка для Основания
+        private void btnAddBase_Click(object sender, EventArgs e)
+        {
+            if (!File.Exists(basePath))
+            {
+                MessageBox.Show($"Файл не найден: {basePath}");
                 return;
             }
 
-            // Для зажима указываем expectedMates = 1
-            bool success = builder.AddClampWithAutoMate(clampPath, savedElements[0]);
-
+            bool success = builder.AddComponentWithAutoMate(basePath, "Base");
             if (success)
             {
-                MessageBox.Show("Зажим добавлен и сопряжен!");
+                MessageBox.Show("Base добавлена и сопряжена!");
             }
         }
     }
