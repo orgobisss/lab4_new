@@ -26,9 +26,10 @@
             // 
             // buttonOpen
             // 
-            this.buttonOpen.Location = new System.Drawing.Point(37, 82);
+            this.buttonOpen.Location = new System.Drawing.Point(74, 158);
+            this.buttonOpen.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.buttonOpen.Name = "buttonOpen";
-            this.buttonOpen.Size = new System.Drawing.Size(150, 30);
+            this.buttonOpen.Size = new System.Drawing.Size(300, 58);
             this.buttonOpen.TabIndex = 0;
             this.buttonOpen.Text = "Открыть сборку";
             this.buttonOpen.UseVisualStyleBackColor = true;
@@ -36,9 +37,10 @@
             // 
             // buttonSaveSelection
             // 
-            this.buttonSaveSelection.Location = new System.Drawing.Point(37, 129);
+            this.buttonSaveSelection.Location = new System.Drawing.Point(74, 248);
+            this.buttonSaveSelection.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.buttonSaveSelection.Name = "buttonSaveSelection";
-            this.buttonSaveSelection.Size = new System.Drawing.Size(150, 30);
+            this.buttonSaveSelection.Size = new System.Drawing.Size(300, 58);
             this.buttonSaveSelection.TabIndex = 1;
             this.buttonSaveSelection.Text = "Сохранить выделение";
             this.buttonSaveSelection.UseVisualStyleBackColor = true;
@@ -46,9 +48,10 @@
             // 
             // btnAddHorizontalPin
             // 
-            this.btnAddHorizontalPin.Location = new System.Drawing.Point(224, 57);
+            this.btnAddHorizontalPin.Location = new System.Drawing.Point(448, 110);
+            this.btnAddHorizontalPin.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.btnAddHorizontalPin.Name = "btnAddHorizontalPin";
-            this.btnAddHorizontalPin.Size = new System.Drawing.Size(150, 30);
+            this.btnAddHorizontalPin.Size = new System.Drawing.Size(300, 58);
             this.btnAddHorizontalPin.TabIndex = 2;
             this.btnAddHorizontalPin.Text = "Горизонтальный палец";
             this.btnAddHorizontalPin.UseVisualStyleBackColor = true;
@@ -56,9 +59,10 @@
             // 
             // btnAddVerticalPin
             // 
-            this.btnAddVerticalPin.Location = new System.Drawing.Point(224, 93);
+            this.btnAddVerticalPin.Location = new System.Drawing.Point(448, 179);
+            this.btnAddVerticalPin.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.btnAddVerticalPin.Name = "btnAddVerticalPin";
-            this.btnAddVerticalPin.Size = new System.Drawing.Size(150, 30);
+            this.btnAddVerticalPin.Size = new System.Drawing.Size(300, 58);
             this.btnAddVerticalPin.TabIndex = 3;
             this.btnAddVerticalPin.Text = "Вертикальный палец";
             this.btnAddVerticalPin.UseVisualStyleBackColor = true;
@@ -66,9 +70,10 @@
             // 
             // btnAddBase
             // 
-            this.btnAddBase.Location = new System.Drawing.Point(224, 129);
+            this.btnAddBase.Location = new System.Drawing.Point(448, 319);
+            this.btnAddBase.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.btnAddBase.Name = "btnAddBase";
-            this.btnAddBase.Size = new System.Drawing.Size(150, 30);
+            this.btnAddBase.Size = new System.Drawing.Size(300, 58);
             this.btnAddBase.TabIndex = 4;
             this.btnAddBase.Text = "Основание";
             this.btnAddBase.UseVisualStyleBackColor = true;
@@ -76,9 +81,10 @@
             // 
             // btnAddClamp
             // 
-            this.btnAddClamp.Location = new System.Drawing.Point(224, 165);
+            this.btnAddClamp.Location = new System.Drawing.Point(448, 249);
+            this.btnAddClamp.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.btnAddClamp.Name = "btnAddClamp";
-            this.btnAddClamp.Size = new System.Drawing.Size(150, 30);
+            this.btnAddClamp.Size = new System.Drawing.Size(300, 58);
             this.btnAddClamp.TabIndex = 5;
             this.btnAddClamp.Text = "Зажим";
             this.btnAddClamp.UseVisualStyleBackColor = true;
@@ -88,17 +94,18 @@
             // 
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.label1.Location = new System.Drawing.Point(221, 35);
+            this.label1.Location = new System.Drawing.Point(442, 67);
+            this.label1.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(58, 16);
+            this.label1.Size = new System.Drawing.Size(110, 30);
             this.label1.TabIndex = 6;
             this.label1.Text = "Детали:";
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(414, 247);
+            this.ClientSize = new System.Drawing.Size(828, 448);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.btnAddClamp);
             this.Controls.Add(this.btnAddBase);
@@ -107,6 +114,7 @@
             this.Controls.Add(this.buttonSaveSelection);
             this.Controls.Add(this.buttonOpen);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "Form1";

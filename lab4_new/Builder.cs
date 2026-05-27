@@ -19,11 +19,11 @@ namespace lab4_new
         // Хранилище классифицированных баз
         public class BaseSelection
         {
-            public object HorizontalPlane;
+            public object HorizontalPlane;      // нижняя горизонтальная плоскость (для VerticalPin)
             public object VerticalPlane;
             public object HorizontalCylinder;
             public object VerticalCircleEdge;
-            public object ClampTopPlane;
+            public object ClampTopPlane;        // верхняя горизонтальная плоскость (для Clamp)
         }
 
         public BaseSelection bases = new BaseSelection();
@@ -120,43 +120,64 @@ namespace lab4_new
         // Классификация 5 выделений
         private void ClassifyBaseSelections()
         {
-            GeometryAnalyzer analyzer = new GeometryAnalyzer();
-
             foreach (var obj in preSelectedObjects)
             {
                 if (obj is Face2 face)
                 {
                     Surface surf = face.GetSurface();
 
+                    // Плоскости
                     if (surf.IsPlane())
                     {
                         double[] n = face.Normal;
 
-                        // Горизонтальная плоскость (нормаль по Z)
-                        if (Math.Abs(n[2]) > 0.9)
+                        // Горизонтальная плоскость (нормаль по Y)
+                        if (Math.Abs(n[1]) > 0.9)
                         {
-                            if (bases.HorizontalPlane == null)
-                                bases.HorizontalPlane = face;
+                            double[] p = face.GetClosestPointOn(0, 0, 0);
+                            double y = p[1];
 
-                            if (bases.ClampTopPlane == null)
-                                bases.ClampTopPlane = face;
+                            // Если первая горизонтальная плоскость — просто сохраняем
+                            if (bases.HorizontalPlane == null && bases.ClampTopPlane == null)
+                            {
+                                bases.HorizontalPlane = face; // временно
+                            }
+                            else
+                            {
+                                // Сравниваем с уже сохранённой
+                                double[] p0 = (bases.HorizontalPlane as Face2).GetClosestPointOn(0, 0, 0);
+                                double y0 = p0[1];
+
+                                if (y > y0)
+                                {
+                                    // Новая плоскость выше → Clamp
+                                    bases.ClampTopPlane = face;
+                                }
+                                else
+                                {
+                                    // Новая плоскость ниже → VerticalPin
+                                    bases.ClampTopPlane = bases.HorizontalPlane;
+                                    bases.HorizontalPlane = face;
+                                }
+                            }
                         }
 
                         // Вертикальная плоскость
-                        if (Math.Abs(n[2]) < 0.1)
+                        if (Math.Abs(n[1]) < 0.1)
                         {
                             if (bases.VerticalPlane == null)
                                 bases.VerticalPlane = face;
                         }
                     }
 
+                    // Цилиндры
                     if (surf.IsCylinder())
                     {
                         double[] cyl = surf.CylinderParams;
-                        double nx = cyl[3], ny = cyl[4], nz = cyl[5];
+                        double ny = cyl[4];
 
-                        // Горизонтальный цилиндр
-                        if (Math.Abs(nz) < 0.1)
+                        // Горизонтальный цилиндр (ось ⟂ Y)
+                        if (Math.Abs(ny) < 0.1)
                         {
                             if (bases.HorizontalCylinder == null)
                                 bases.HorizontalCylinder = face;
@@ -164,6 +185,7 @@ namespace lab4_new
                     }
                 }
 
+                // Круглое ребро
                 if (obj is Edge edge)
                 {
                     Curve curve = edge.GetCurve();
@@ -195,7 +217,7 @@ namespace lab4_new
         {
             return new List<object>()
             {
-                bases.HorizontalPlane,
+                bases.HorizontalPlane,      // нижняя горизонтальная
                 bases.VerticalCircleEdge
             };
         }
@@ -204,7 +226,7 @@ namespace lab4_new
         {
             return new List<object>()
             {
-                bases.ClampTopPlane
+                bases.ClampTopPlane         // верхняя горизонтальная
             };
         }
 
