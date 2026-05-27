@@ -12,20 +12,30 @@ namespace lab4_new
     {
         public SldWorks app;
         public ModelDoc2 model;
-        public PartDoc part;
         public AssemblyDoc assembly;
-        public SelectionMgr selMng;
 
-        private List<object> firstStageFaces = new List<object>();
-        private List<object> secondStageFaces = new List<object>();
-        private Dictionary<string, List<object>> distributedFaces = new Dictionary<string, List<object>>();
+        private List<object> preSelectedObjects = new List<object>();
+
+        // Хранилище классифицированных баз
+        public class BaseSelection
+        {
+            public object HorizontalPlane;
+            public object VerticalPlane;
+            public object HorizontalCylinder;
+            public object VerticalCircleEdge;
+            public object ClampTopPlane;
+        }
+
+        public BaseSelection bases = new BaseSelection();
+
+        // Второй набор выделений — для основания
+        public List<object> basePlanesForBase = new List<object>();
 
         public bool init()
         {
             try
             {
-                app = (SldWorks)Marshal.GetActiveObject("SolidWorks.Application");
-                Console.WriteLine("Подключен к существующему SolidWorks");
+                app = (SldWorks)Marshal.GetActiveObject("SldWorks.Application");
                 return true;
             }
             catch
@@ -33,9 +43,7 @@ namespace lab4_new
                 try
                 {
                     app = new SldWorks();
-                    app.FrameState = (int)swWindowState_e.swWindowMaximized;
                     app.Visible = true;
-                    Console.WriteLine("Запущен новый экземпляр SolidWorks");
                     return true;
                 }
                 catch (Exception ex)
@@ -50,7 +58,8 @@ namespace lab4_new
         {
             try
             {
-                ModelDoc2 baseAssembly = app.OpenDoc6(assemblyPath,
+                ModelDoc2 baseAssembly = app.OpenDoc6(
+                    assemblyPath,
                     (int)swDocumentTypes_e.swDocASSEMBLY,
                     (int)swOpenDocOptions_e.swOpenDocOptions_Silent,
                     "", 0, 0);
@@ -71,486 +80,246 @@ namespace lab4_new
             }
         }
 
-        public void SaveFirstStageFaces()
+        // Сохранение выделений
+        public void SavePreSelectedObjects()
         {
-            firstStageFaces.Clear();
-            distributedFaces.Clear();
-
-            if (app == null)
-            {
-                MessageBox.Show("SolidWorks не инициализирован");
-                return;
-            }
+            preSelectedObjects.Clear();
 
             ModelDoc2 activeDoc = app.ActiveDoc as ModelDoc2;
-            if (activeDoc == null)
-            {
-                MessageBox.Show("Нет активного документа в SolidWorks");
-                return;
-            }
+            if (activeDoc == null) return;
 
             SelectionMgr selMgr = activeDoc.SelectionManager;
-            if (selMgr == null)
-            {
-                MessageBox.Show("Не удалось получить менеджер выделения");
-                return;
-            }
+            if (selMgr == null) return;
 
             int count = selMgr.GetSelectedObjectCount2(-1);
-            Console.WriteLine($"\n=== ЭТАП 1: Выделение элементов ===");
-            Console.WriteLine($"Найдено выделенных объектов: {count}");
-
-            if (count != 5)
-            {
-                MessageBox.Show($"Ошибка: необходимо выделить ровно 5 элементов!\nВыделено: {count}");
-                return;
-            }
 
             for (int i = 1; i <= count; i++)
             {
-                int selType = selMgr.GetSelectedObjectType3(i, -1);
-                string typeName = GetSelectionTypeName(selType);
-
-                Console.WriteLine($"  Элемент {i}: selType={selType} ({typeName})");
-
-                object obj = null;
-
-                // Получаем объект в зависимости от типа выделения
-                if (selType == (int)swSelectType_e.swSelFACES)
-                {
-                    obj = selMgr.GetSelectedObject2(i, -1) as Face2;
-                }
-                else if (selType == (int)swSelectType_e.swSelEDGES)
-                {
-                    obj = selMgr.GetSelectedObject2(i, -1) as Edge;
-                }
-                else
-                {
-                    obj = selMgr.GetSelectedObject2(i, -1);
-                }
-
+                object obj = selMgr.GetSelectedObject6(i, -1);
                 if (obj != null)
-                {
-                    firstStageFaces.Add(obj);
-                    Console.WriteLine($"    Объект успешно получен: {obj.GetType().Name}");
-                }
-                else
-                {
-                    Console.WriteLine($"    ОШИБКА: Не удалось получить объект");
-                }
+                    preSelectedObjects.Add(obj);
             }
 
-            if (DistributeFaces(firstStageFaces))
+            MessageBox.Show($"Сохранено {preSelectedObjects.Count} объектов");
+
+            // Если это первое сохранение (5 элементов)
+            if (preSelectedObjects.Count == 5)
             {
-                MessageBox.Show($"✓ Сохранено и распределено {firstStageFaces.Count} элементов");
+                ClassifyBaseSelections();
+                MessageBox.Show("Базы успешно классифицированы!");
             }
-            else
+
+            // Если это второе сохранение (3 плоскости для основания)
+            if (preSelectedObjects.Count == 3)
             {
-                MessageBox.Show("✗ Ошибка при распределении элементов!");
-                firstStageFaces.Clear();
-                distributedFaces.Clear();
+                basePlanesForBase = new List<object>(preSelectedObjects);
+                MessageBox.Show("Плоскости для основания сохранены!");
             }
         }
 
-        public void SaveSecondStageFaces()
+        // Классификация 5 выделений
+        private void ClassifyBaseSelections()
         {
-            secondStageFaces.Clear();
+            GeometryAnalyzer analyzer = new GeometryAnalyzer();
 
-            if (app == null)
+            foreach (var obj in preSelectedObjects)
             {
-                MessageBox.Show("SolidWorks не инициализирован");
-                return;
-            }
-
-            ModelDoc2 activeDoc = app.ActiveDoc as ModelDoc2;
-            if (activeDoc == null)
-            {
-                MessageBox.Show("Нет активного документа в SolidWorks");
-                return;
-            }
-
-            SelectionMgr selMgr = activeDoc.SelectionManager;
-            if (selMgr == null)
-            {
-                MessageBox.Show("Не удалось получить менеджер выделения");
-                return;
-            }
-
-            int count = selMgr.GetSelectedObjectCount2(-1);
-            Console.WriteLine($"\n=== ЭТАП 2: Выделение граней ===");
-            Console.WriteLine($"Найдено выделенных объектов: {count}");
-
-            if (count != 3)
-            {
-                MessageBox.Show($"Ошибка: необходимо выделить ровно 3 грани!\nВыделено: {count}");
-                return;
-            }
-
-            for (int i = 1; i <= count; i++)
-            {
-                object obj = selMgr.GetSelectedObject2(i, -1) as Face2;
-                if (obj != null)
-                {
-                    Console.WriteLine($"  Грань {i}: {obj.GetType().Name}");
-                    secondStageFaces.Add(obj);
-                }
-            }
-
-            MessageBox.Show($"✓ Сохранено {secondStageFaces.Count} граней второго этапа");
-        }
-
-        private bool DistributeFaces(List<object> faces)
-        {
-            try
-            {
-                Console.WriteLine($"\n=== Анализ выделенных элементов ===");
-
-                distributedFaces["PalecHorizontal"] = new List<object>();
-                distributedFaces["PalecVertical"] = new List<object>();
-                distributedFaces["Clamp"] = new List<object>();
-
-                for (int i = 0; i < faces.Count; i++)
-                {
-                    object elem = faces[i];
-                    ElementType elemType = ElementType.Unknown;
-                    string debugInfo = "";
-
-                    try
-                    {
-                        elemType = AnalyzeElementType(elem);
-                        debugInfo = $"Тип: {elemType}";
-                    }
-                    catch (Exception ex)
-                    {
-                        debugInfo = $"Ошибка анализа: {ex.Message}";
-                    }
-
-                    Console.WriteLine($"Элемент {i + 1}: {debugInfo}");
-
-                    // PalecHorizontal: вертикальная плоскость + вертикальное ребро
-                    if (elemType == ElementType.VerticalPlane && distributedFaces["PalecHorizontal"].Count < 1)
-                    {
-                        distributedFaces["PalecHorizontal"].Add(elem);
-                        Console.WriteLine("  ✓ → PalecHorizontal (вертикальная плоскость)");
-                    }
-                    else if (elemType == ElementType.VerticalCylinderEdge && distributedFaces["PalecHorizontal"].Count == 1)
-                    {
-                        distributedFaces["PalecHorizontal"].Add(elem);
-                        Console.WriteLine("  ✓ → PalecHorizontal (вертикальное ребро)");
-                    }
-
-                    // PalecVertical: горизонтальная плоскость + горизонтальное ребро
-                    else if (elemType == ElementType.HorizontalPlane && distributedFaces["PalecVertical"].Count < 1)
-                    {
-                        distributedFaces["PalecVertical"].Add(elem);
-                        Console.WriteLine("  ✓ → PalecVertical (горизонтальная плоскость)");
-                    }
-                    else if (elemType == ElementType.HorizontalCylinderEdge && distributedFaces["PalecVertical"].Count == 1)
-                    {
-                        distributedFaces["PalecVertical"].Add(elem);
-                        Console.WriteLine("  ✓ → PalecVertical (горизонтальное ребро)");
-                    }
-
-                    // Clamp: горизонтальная плоскость
-                    else if (elemType == ElementType.HorizontalPlane && distributedFaces["Clamp"].Count < 1 && distributedFaces["PalecVertical"].Count == 2)
-                    {
-                        distributedFaces["Clamp"].Add(elem);
-                        Console.WriteLine("  ✓ → Clamp (горизонтальная плоскость)");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"  ✗ → Не подошло (slots: PH={distributedFaces["PalecHorizontal"].Count}/2, PV={distributedFaces["PalecVertical"].Count}/2, C={distributedFaces["Clamp"].Count}/1)");
-                    }
-                }
-
-                Console.WriteLine($"\n=== Результат распределения ===");
-                Console.WriteLine($"PalecHorizontal: {distributedFaces["PalecHorizontal"].Count}/2");
-                Console.WriteLine($"PalecVertical: {distributedFaces["PalecVertical"].Count}/2");
-                Console.WriteLine($"Clamp: {distributedFaces["Clamp"].Count}/1");
-
-                bool success = distributedFaces["PalecHorizontal"].Count == 2 &&
-                              distributedFaces["PalecVertical"].Count == 2 &&
-                              distributedFaces["Clamp"].Count == 1;
-
-                if (success)
-                {
-                    Console.WriteLine("\n✓✓✓ Элементы успешно распределены ✓✓✓");
-                }
-                else
-                {
-                    Console.WriteLine("\n✗✗✗ Ошибка: не все слоты заполнены ✗✗✗");
-                }
-
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"\n✗ КРИТИЧЕСКАЯ ОШИБКА: {ex.Message}\n{ex.StackTrace}");
-                MessageBox.Show($"Критическая ошибка:\n{ex.Message}");
-                return false;
-            }
-        }
-
-        private ElementType AnalyzeElementType(object elem)
-        {
-            try
-            {
-                // Пробуем привести к Face2 (грань)
-                Face2 face = elem as Face2;
-                if (face != null)
+                if (obj is Face2 face)
                 {
                     Surface surf = face.GetSurface();
-                    if (surf == null)
-                    {
-                        Console.WriteLine("    DEBUG: Surface is null для Face2");
-                        return ElementType.Unknown;
-                    }
 
-                    // Проверяем плоскость
                     if (surf.IsPlane())
                     {
-                        object[] planeParams = surf.PlaneParams as object[];
-                        if (planeParams != null && planeParams.Length >= 3)
-                        {
-                            double normalY = Math.Abs((double)planeParams[1]);
-                            Console.WriteLine($"    [Face2 Plane] Normal Y: {normalY:F3}");
+                        double[] n = face.Normal;
 
-                            if (normalY > 0.9)
-                                return ElementType.HorizontalPlane;
-                            else
-                                return ElementType.VerticalPlane;
+                        // Горизонтальная плоскость (нормаль по Z)
+                        if (Math.Abs(n[2]) > 0.9)
+                        {
+                            if (bases.HorizontalPlane == null)
+                                bases.HorizontalPlane = face;
+
+                            if (bases.ClampTopPlane == null)
+                                bases.ClampTopPlane = face;
+                        }
+
+                        // Вертикальная плоскость
+                        if (Math.Abs(n[2]) < 0.1)
+                        {
+                            if (bases.VerticalPlane == null)
+                                bases.VerticalPlane = face;
                         }
                     }
 
-                    // Проверяем цилиндр
                     if (surf.IsCylinder())
                     {
-                        object[] cylParams = surf.CylinderParams as object[];
-                        if (cylParams != null && cylParams.Length >= 7)
-                        {
-                            double axisY = Math.Abs((double)cylParams[4]);
-                            Console.WriteLine($"    [Face2 Cylinder] Axis Y: {axisY:F3}");
+                        double[] cyl = surf.CylinderParams;
+                        double nx = cyl[3], ny = cyl[4], nz = cyl[5];
 
-                            if (axisY > 0.9)
-                                return ElementType.VerticalCylinderEdge;
-                            else
-                                return ElementType.HorizontalCylinderEdge;
+                        // Горизонтальный цилиндр
+                        if (Math.Abs(nz) < 0.1)
+                        {
+                            if (bases.HorizontalCylinder == null)
+                                bases.HorizontalCylinder = face;
                         }
                     }
                 }
 
-                // Пробуем привести к Edge (ребро)
-                Edge edge = elem as Edge;
-                if (edge != null)
+                if (obj is Edge edge)
                 {
                     Curve curve = edge.GetCurve();
-                    if (curve != null && curve.IsCircle())
+                    if (curve.IsCircle())
                     {
-                        object[] circleParams = curve.CircleParams as object[];
-                        if (circleParams != null && circleParams.Length >= 6)
-                        {
-                            double axisY = Math.Abs((double)circleParams[4]);
-                            Console.WriteLine($"    [Edge Circle] Axis Y: {axisY:F3}");
+                        double[] p = curve.CircleParams;
 
-                            if (axisY > 0.9)
-                                return ElementType.VerticalCylinderEdge;
-                            else
-                                return ElementType.HorizontalCylinderEdge;
+                        // Ось || Y
+                        if (Math.Abs(p[4]) > 0.9)
+                        {
+                            if (bases.VerticalCircleEdge == null)
+                                bases.VerticalCircleEdge = edge;
                         }
                     }
-                    else
-                    {
-                        Console.WriteLine($"    [Edge] Не является окружностью");
-                    }
                 }
-
-                Console.WriteLine($"    [Unknown] Элемент типа {elem.GetType().Name} не распознан");
-                return ElementType.Unknown;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"    [Exception] {ex.Message}");
-                return ElementType.Unknown;
             }
         }
 
-        private string GetSelectionTypeName(int selType)
+        public List<object> GetBasesForHorizontalPin()
         {
-            switch (selType)
+            return new List<object>()
             {
-                case (int)swSelectType_e.swSelFACES: return "FACE";
-                case (int)swSelectType_e.swSelEDGES: return "EDGE";
-                case (int)swSelectType_e.swSelVERTICES: return "VERTEX";
-                case (int)swSelectType_e.swSelCOMPONENTS: return "COMPONENT";
-                case (int)swSelectType_e.swSelBODYFEATURES: return "BODYFEATURE";
-                default: return $"UNKNOWN({selType})";
-            }
+                bases.VerticalPlane,
+                bases.HorizontalCylinder
+            };
         }
 
-        public bool AddComponentWithAutoMate(string componentPath, string componentType,
-                                           double x = 0, double y = 0, double z = 0)
+        public List<object> GetBasesForVerticalPin()
         {
-            try
+            return new List<object>()
             {
-                if (assembly == null || app == null)
-                {
-                    MessageBox.Show("Сборка не открыта или SolidWorks не инициализирован");
-                    return false;
-                }
+                bases.HorizontalPlane,
+                bases.VerticalCircleEdge
+            };
+        }
 
-                if (distributedFaces.Count == 0)
-                {
-                    MessageBox.Show("Сначала выполните Этап 1: сохраните и распределите 5 элементов!");
-                    return false;
-                }
-
-                if (!distributedFaces.ContainsKey(componentType))
-                {
-                    MessageBox.Show($"Неизвестный тип компонента: {componentType}");
-                    return false;
-                }
-
-                var basesForComponent = distributedFaces[componentType];
-                if (basesForComponent.Count == 0)
-                {
-                    MessageBox.Show($"Для компонента '{componentType}' не найдены подходящие элементы!");
-                    return false;
-                }
-
-                Component2 newComponent = AddComponentToAssembly(componentPath, x, y, z);
-                if (newComponent == null) return false;
-
-                return AutoMateComponentWithElements(newComponent, basesForComponent);
-            }
-            catch (Exception ex)
+        public List<object> GetBasesForClamp()
+        {
+            return new List<object>()
             {
-                MessageBox.Show($"Ошибка: {ex.Message}");
+                bases.ClampTopPlane
+            };
+        }
+
+        public List<object> GetBasesForBase()
+        {
+            return basePlanesForBase;
+        }
+
+        // Добавление компонента
+        public bool AddComponentWithAutoMate(string componentPath,
+                                             int expectedMates,
+                                             double x, double y, double z)
+        {
+            string file = Path.GetFileName(componentPath).ToLower();
+
+            List<object> savedElements = null;
+
+            if (file.Contains("horizontal"))
+                savedElements = GetBasesForHorizontalPin();
+
+            else if (file.Contains("vertical"))
+                savedElements = GetBasesForVerticalPin();
+
+            else if (file.Contains("clamp"))
+                savedElements = GetBasesForClamp();
+
+            else if (file.Contains("base"))
+                savedElements = GetBasesForBase();
+
+            if (savedElements == null)
+            {
+                MessageBox.Show("Не удалось определить базы для детали");
                 return false;
             }
+
+            Component2 newComponent = AddComponentToAssembly(componentPath, x, y, z);
+            if (newComponent == null) return false;
+
+            return AutoMateComponentUniversal(newComponent, savedElements, expectedMates);
         }
 
-        private bool AutoMateComponentWithElements(Component2 component, List<object> baseElements)
+        public Component2 AddComponentToAssembly(string componentPath, double x, double y, double z)
         {
             try
             {
-                ModelDoc2 activeDoc = app.IActiveDoc2 as ModelDoc2;
-                if (activeDoc == null) return false;
+                string ext = Path.GetExtension(componentPath).ToUpper();
+                int docType = ext == ".SLDASM" ? 2 : 1;
 
-                GeometryAnalyzer analyzer = new GeometryAnalyzer();
-                bool allMated = true;
+                ModelDoc2 original = model;
 
-                for (int i = 0; i < baseElements.Count; i++)
-                {
-                    object baseElement = baseElements[i];
-                    ElementType elementType = AnalyzeElementType(baseElement);
-                    object mateElement = null;
+                ModelDoc2 compDoc = app.OpenDoc6(componentPath, docType,
+                    (int)swOpenDocOptions_e.swOpenDocOptions_Silent,
+                    "", 0, 0);
 
-                    Console.WriteLine($"\nСопряжение {i + 1}: {elementType}");
+                app.ActivateDoc3(original.GetTitle(), false, 0, 0);
 
-                    switch (elementType)
-                    {
-                        case ElementType.VerticalPlane:
-                            mateElement = analyzer.FindVerticalPlane(component);
-                            break;
-                        case ElementType.HorizontalPlane:
-                            mateElement = analyzer.FindHorizontalPlane(component);
-                            break;
-                        case ElementType.VerticalCylinderEdge:
-                            mateElement = analyzer.FindVerticalCylinderFace(component);
-                            if (mateElement == null)
-                                mateElement = analyzer.FindVerticalCylinderEdge(component);
-                            break;
-                        case ElementType.HorizontalCylinderEdge:
-                            mateElement = analyzer.FindHorizontalCylinderFace(component);
-                            if (mateElement == null)
-                                mateElement = analyzer.FindHorizontalCylinderEdge(component);
-                            break;
-                        default:
-                            mateElement = analyzer.FindBurtPlane(component);
-                            break;
-                    }
+                Component2 comp = assembly.AddComponent4(componentPath, "", x, y, z);
 
-                    if (mateElement != null)
-                    {
-                        int mateType = (elementType == ElementType.VerticalCylinderEdge ||
-                                       elementType == ElementType.HorizontalCylinderEdge) ? 1 : 0;
-                        CreateMate(baseElement, mateElement, mateType);
-                        Console.WriteLine($"  ✓ Сопряжение создано");
-                    }
-                    else
-                    {
-                        allMated = false;
-                        Console.WriteLine($"  ✗ Не удалось найти элемент");
-                    }
-                }
+                if (compDoc != null && compDoc != original)
+                    app.CloseDoc(compDoc.GetTitle());
 
-                activeDoc.EditRebuild3();
-                return allMated;
+                model.EditRebuild3();
+                return comp;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}");
-                return false;
-            }
-        }
-
-        public Component2 AddComponentToAssembly(string componentPath, double x = 0, double y = 0, double z = 0)
-        {
-            try
-            {
-                if (assembly == null || app == null)
-                {
-                    MessageBox.Show("Сборка не открыта или SolidWorks не инициализирован");
-                    return null;
-                }
-
-                string extension = Path.GetExtension(componentPath).ToUpper();
-                int docType;
-
-                switch (extension)
-                {
-                    case ".SLDPRT":
-                        docType = (int)swDocumentTypes_e.swDocPART;
-                        break;
-                    case ".SLDASM":
-                        docType = (int)swDocumentTypes_e.swDocASSEMBLY;
-                        break;
-                    default:
-                        MessageBox.Show($"Неподдерживаемый формат: {extension}");
-                        return null;
-                }
-
-                ModelDoc2 originalDoc = model;
-                ModelDoc2 componentDoc = app.OpenDoc6(componentPath, docType,
-                    (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", 0, 0);
-
-                if (componentDoc == null)
-                {
-                    MessageBox.Show($"Не удалось открыть: {Path.GetFileName(componentPath)}");
-                    return null;
-                }
-
-                app.ActivateDoc3(originalDoc.GetTitle(), false, 0, 0);
-
-                Component2 newComponent = assembly.AddComponent4(componentPath, "", x, y, z);
-
-                if (componentDoc != null && componentDoc != originalDoc)
-                {
-                    app.CloseDoc(componentDoc.GetTitle());
-                }
-
-                if (newComponent != null)
-                {
-                    model.EditRebuild3();
-                }
-
-                return newComponent;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при добавлении компонента: {ex.Message}");
+                MessageBox.Show($"Ошибка добавления компонента: {ex.Message}");
                 return null;
             }
+        }
+
+        private bool AutoMateComponentUniversal(Component2 component,
+                                                List<object> baseElements,
+                                                int expectedMates)
+        {
+            GeometryAnalyzer analyzer = new GeometryAnalyzer();
+            ModelDoc2 doc = app.IActiveDoc2;
+
+            for (int i = 0; i < expectedMates; i++)
+            {
+                object baseElem = baseElements[i];
+                object mateElem = null;
+
+                int type = GetElementType(baseElem);
+
+                if (type == 0)
+                    mateElem = analyzer.FindBurtPlane(component);
+
+                if (type == 1 || type == 2)
+                    mateElem = analyzer.FindPinCylinder(component);
+
+                if (mateElem != null)
+                    CreateMate(baseElem, mateElem, type == 0 ? 0 : 1);
+            }
+
+            doc.EditRebuild3();
+            return true;
+        }
+
+        private int GetElementType(object element)
+        {
+            if (element is Face2 face)
+            {
+                Surface s = face.GetSurface();
+                if (s.IsPlane()) return 0;
+                if (s.IsCylinder()) return 1;
+            }
+
+            if (element is Edge edge)
+            {
+                Curve c = edge.GetCurve();
+                if (c.IsCircle()) return 2;
+            }
+
+            return -1;
         }
 
         private void CreateMate(object element1, object element2, int mateType)
@@ -560,32 +329,22 @@ namespace lab4_new
                 ModelDoc2 activeDoc = app.IActiveDoc2 as ModelDoc2;
                 activeDoc.ClearSelection2(true);
 
-                if (element1 is IEntity entity1)
-                {
-                    entity1.Select4(true, null);
-                }
+                // Выделяем первый элемент
+                if (element1 is IEntity entity1) entity1.Select4(true, null);
+                else if (element1 is Feature feature1) feature1.Select2(true, -1);
 
-                if (element2 is IEntity entity2)
-                {
-                    entity2.Select4(true, null);
-                }
+                // Выделяем второй элемент
+                if (element2 is IEntity entity2) entity2.Select4(true, null);
+                else if (element2 is Feature feature2) feature2.Select2(true, -1);
 
+                // mateType: 0 - совпадение, 1 - соосность
                 int alignType = (mateType == 0) ? 0 : -1;
                 assembly.AddMate(mateType, alignType, false, 0, 0);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка сопряжения: {ex.Message}");
+                Console.WriteLine($"Ошибка создания сопряжения: {ex.Message}");
             }
         }
-    }
-
-    public enum ElementType
-    {
-        Unknown,
-        VerticalPlane,
-        HorizontalPlane,
-        VerticalCylinderEdge,
-        HorizontalCylinderEdge
     }
 }

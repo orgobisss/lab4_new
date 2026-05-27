@@ -1,12 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace lab4_new
@@ -14,14 +7,14 @@ namespace lab4_new
     public partial class Form1 : Form
     {
         private Builder builder = new Builder();
-        private string baseAssemblyPath = "D:\\BNTU\\3 курс\\ОАК\\лабы\\lab4_new\\units\\Сборка.SLDASM";
-        private string componentsFolder = "D:\\BNTU\\3 курс\\ОАК\\лабы\\lab4_new\\units\\";
 
-        // Конкретные пути к деталям
-        private string pinHorizontalPath;   // Горизонтальный палец
-        private string pinVerticalPath;     // Вертикальный палец  
-        private string basePath;            // Основание
-        private string clampPath;           // Зажим
+        private string baseAssemblyPath = "D:\\BNTU\\3 курс\\ОАК\\лабы\\lab4\\units\\Сборка.SLDASM";
+        private string componentsFolder = "D:\\BNTU\\3 курс\\ОАК\\лабы\\lab4\\units\\";
+
+        private string pinHorizontalPath;
+        private string pinVerticalPath;
+        private string basePath;
+        private string clampPath;
 
         public Form1()
         {
@@ -39,25 +32,18 @@ namespace lab4_new
 
         private void buttonOpen_Click(object sender, EventArgs e)
         {
-            // 1. Инициализация SolidWorks
             if (!builder.init())
                 return;
 
-            // 2. Открытие базовой сборки с одной деталью
             builder.OpenBaseAssembly(baseAssemblyPath);
         }
 
-        private void buttonSaveSelection1_Click(object sender, EventArgs e)
+        private void buttonSaveSelection_Click(object sender, EventArgs e)
         {
-            builder.SaveFirstStageFaces();
+            builder.SavePreSelectedObjects();
         }
 
-        private void buttonSaveSelection2_Click(object sender, EventArgs e)
-        {
-            builder.SaveSecondStageFaces();
-        }
-
-        // Кнопка для Горизонтального пальца
+        // Горизонтальный палец
         private void btnAddHorizontalPin_Click(object sender, EventArgs e)
         {
             if (!File.Exists(pinHorizontalPath))
@@ -66,14 +52,12 @@ namespace lab4_new
                 return;
             }
 
-            bool success = builder.AddComponentWithAutoMate(pinHorizontalPath, "PalecHorizontal");
+            bool success = builder.AddComponentWithAutoMate(pinHorizontalPath, 2, 0.1, 0, 0);
             if (success)
-            {
-                MessageBox.Show("PalecHorizontal добавлен и сопряжен!");
-            }
+                MessageBox.Show("Горизонтальный палец добавлен и сопряжён!");
         }
 
-        // Кнопка для Вертикального пальца
+        // Вертикальный палец
         private void btnAddVerticalPin_Click(object sender, EventArgs e)
         {
             if (!File.Exists(pinVerticalPath))
@@ -82,30 +66,12 @@ namespace lab4_new
                 return;
             }
 
-            bool success = builder.AddComponentWithAutoMate(pinVerticalPath, "PalecVertical");
+            bool success = builder.AddComponentWithAutoMate(pinVerticalPath, 2, 0.2, 0, 0);
             if (success)
-            {
-                MessageBox.Show("PalecVertical добавлен и сопряжен!");
-            }
+                MessageBox.Show("Вертикальный палец добавлен и сопряжён!");
         }
 
-        // Кнопка для Зажима
-        private void btnAddClamp_Click(object sender, EventArgs e)
-        {
-            if (!File.Exists(clampPath))
-            {
-                MessageBox.Show($"Файл не найден: {clampPath}");
-                return;
-            }
-
-            bool success = builder.AddComponentWithAutoMate(clampPath, "Clamp");
-            if (success)
-            {
-                MessageBox.Show("Clamp добавлен и сопряжен!");
-            }
-        }
-
-        // Кнопка для Основания
+        // Основание
         private void btnAddBase_Click(object sender, EventArgs e)
         {
             if (!File.Exists(basePath))
@@ -114,11 +80,36 @@ namespace lab4_new
                 return;
             }
 
-            bool success = builder.AddComponentWithAutoMate(basePath, "Base");
-            if (success)
+            if (builder.basePlanesForBase.Count != 3)
             {
-                MessageBox.Show("Base добавлена и сопряжена!");
+                MessageBox.Show("Сначала выделите 3 горизонтальные плоскости на добавленных деталях и нажмите 'Сохранить выделение'");
+                return;
             }
+
+            bool success = builder.AddComponentWithAutoMate(basePath, 3, 0.01, 0, 0.02);
+            if (success)
+                MessageBox.Show("Основание добавлено и сопряжено!");
+        }
+
+        // Зажим
+        private void btnAddClamp_Click(object sender, EventArgs e)
+        {
+            if (!File.Exists(clampPath))
+            {
+                MessageBox.Show($"Файл не найден: {clampPath}");
+                return;
+            }
+
+            if (builder.bases.ClampTopPlane == null)
+            {
+                MessageBox.Show("Не найдена верхняя плоскость для зажима.\n" +
+                                "Убедитесь, что вы выделили 5 базовых элементов и сохранили их.");
+                return;
+            }
+
+            bool success = builder.AddComponentWithAutoMate(clampPath, 1, 0.05, 0, 0);
+            if (success)
+                MessageBox.Show("Зажим добавлен и сопряжён!");
         }
     }
 }
